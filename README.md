@@ -27,6 +27,3 @@ Ensure `base-devel`, `cargo`, and sibling repositories (`hacknet-core`, `hacknet
 
 Built `.pkg.tar.zst` archives, detached `.sig` signatures (when the release signing key is present in the local GPG keyring), and the `hacknetos.db` pacman database are written to `pkg-out/`.
 
-## License
-
-GPL-3.0-or-later

@@ -1,0 +1,181 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknet-shell
+pkgver=0.1.0
+pkgrel=64
+pkgdesc="HacknetOS Quickshell desktop shell (panels, widgets, overlays, greeter)"
+arch=(any)
+url="https://github.com/HacknetAOS/hacknet-shell"
+license=(GPL-3.0-or-later)
+depends=(quickshell hacknetd hacknetctl hacknet-theme greetd)
+optdepends=(
+    'fprintd: fingerprint scanner biometric authentication'
+    'foot: default terminal'
+    'pipewire: audio'
+    'pipewire-alsa: ALSA support for PipeWire'
+    'wireplumber: PipeWire session manager'
+    'playerctl: media controls'
+)
+source=()
+sha256sums=()
+
+_find_shell_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-shell" "${HACKNET_SRC:-}" "$startdir/../../hacknet-shell"; do
+        if [ -n "$d" ] && [ -d "$d/components" ] && [ -f "$d/shell.qml" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    echo "."
+}
+
+package() {
+    local sdir bdir
+    sdir="$(_find_shell_dir)"
+    bdir="$sdir/bin"
+
+    # Install Quickshell configuration to system-wide location
+    install -dm755 "$pkgdir/usr/share/quickshell/hacknet"
+    cp -r "$sdir"/singletons "$sdir"/components "$sdir"/assets "$sdir"/greeter "$sdir"/shell.qml "$pkgdir/usr/share/quickshell/hacknet/"
+
+    # Install session scripts, terminal wrappers, app opener, and greeter
+    install -dm755 "$pkgdir/usr/bin"
+    for bin in hacknet-hyprland hacknet-sway hacknet-layout hacknet-term hacknet-dock-term hacknet-apps hacknet-launcher hacknet-greeter; do
+        install -m755 "$bdir/$bin" "$pkgdir/usr/bin/$bin"
+    done
+
+    # Install greetd configs and PAM integration
+    install -dm755 "$pkgdir/etc/greetd"
+    cat > "$pkgdir/etc/greetd/sway-greeter.conf" <<'EOF'
+xwayland disable
+output * mode 1920x1080
+
+input * {
+    xkb_layout "us"
+}
+
+exec sh -c "exec quickshell -p /usr/share/quickshell/hacknet/greeter/shell.qml >/var/lib/greetd/quickshell-greeter.log 2>&1"
+EOF
+    chmod 644 "$pkgdir/etc/greetd/sway-greeter.conf"
+
+    cat > "$pkgdir/etc/greetd/config.toml" <<'EOF'
+[terminal]
+vt = 1
+
+[general]
+source_profile = false
+
+[default_session]
+command = "/usr/bin/hacknet-greeter"
+user = "greeter"
+EOF
+    chmod 644 "$pkgdir/etc/greetd/config.toml"
+
+    install -dm755 "$pkgdir/etc/pam.d"
+    cat > "$pkgdir/etc/pam.d/greetd" <<'EOF'
+#%PAM-1.0
+-auth      sufficient   pam_fprintd.so
+auth       required     pam_securetty.so
+auth       requisite    pam_nologin.so
+auth       include      system-local-login
+account    include      system-local-login
+session    include      system-local-login
+EOF
+    chmod 644 "$pkgdir/etc/pam.d/greetd"
+
+    install -dm755 "$pkgdir/usr/lib/tmpfiles.d"
+    cat > "$pkgdir/usr/lib/tmpfiles.d/hacknet-greeter.conf" <<'EOF'
+d /var/lib/greetd 0755 greeter greeter -
+EOF
+
+    # Install wayland-sessions desktop files
+    install -dm755 "$pkgdir/usr/share/wayland-sessions"
+    cat > "$pkgdir/usr/share/wayland-sessions/hacknet-hyprland.desktop" <<'EOF'
+[Desktop Entry]
+Name=HacknetOS (Hyprland)
+Comment=HacknetOS fixed-grid desktop on Hyprland
+Exec=hacknet-hyprland
+Type=Application
+DesktopNames=HacknetOS
+EOF
+
+    cat > "$pkgdir/usr/share/wayland-sessions/hacknet-sway.desktop" <<'EOF'
+[Desktop Entry]
+Name=HacknetOS (Sway)
+Comment=HacknetOS fixed-grid desktop on Sway (fallback)
+Exec=hacknet-sway
+Type=Application
+DesktopNames=HacknetOS
+EOF
+
+    # Install Hyprland and Sway compositor configurations
+    install -Dm644 "$sdir/compositor/hyprland/hacknet.lua" "$pkgdir/etc/xdg/hypr/hacknet.conf"
+    install -Dm644 "$sdir/compositor/sway/hacknet.conf" "$pkgdir/etc/sway/hacknet.conf"
+
+    # Install nano.desktop and default MIME associations
+    install -dm755 "$pkgdir/usr/share/applications"
+    cat > "$pkgdir/usr/share/applications/nano.desktop" <<'EOF'
+[Desktop Entry]
+Name=Nano
+Comment=Terminal Text Editor
+GenericName=Text Editor
+Exec=foot nano %F
+Icon=text-editor
+Type=Application
+Terminal=false
+StartupNotify=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/markdown;application/json;application/xml;text/x-shellscript;text/x-python;text/x-c;text/x-c++;text/x-rust;text/javascript;text/x-lua;text/x-toml;text/x-yaml;application/x-yaml;
+Keywords=nano;editor;text;
+EOF
+
+    install -dm755 "$pkgdir/etc/xdg"
+    cat > "$pkgdir/etc/xdg/mimeapps.list" <<'EOF'
+[Default Applications]
+text/plain=nano.desktop;
+text/markdown=nano.desktop;
+application/json=nano.desktop;
+application/xml=nano.desktop;
+text/x-shellscript=nano.desktop;
+text/x-python=nano.desktop;
+text/x-c=nano.desktop;
+text/x-c++=nano.desktop;
+text/x-rust=nano.desktop;
+text/javascript=nano.desktop;
+text/x-lua=nano.desktop;
+text/x-toml=nano.desktop;
+text/x-yaml=nano.desktop;
+application/x-yaml=nano.desktop;
+
+[Added Associations]
+text/plain=nano.desktop;
+text/markdown=nano.desktop;
+application/json=nano.desktop;
+application/xml=nano.desktop;
+text/x-shellscript=nano.desktop;
+text/x-python=nano.desktop;
+text/x-c=nano.desktop;
+text/x-c++=nano.desktop;
+text/x-rust=nano.desktop;
+text/javascript=nano.desktop;
+text/x-lua=nano.desktop;
+text/x-toml=nano.desktop;
+text/x-yaml=nano.desktop;
+application/x-yaml=nano.desktop;
+EOF
+
+    # Default Electron Wayland flags in skel
+    install -dm755 "$pkgdir/etc/skel/.config"
+    cat > "$pkgdir/etc/skel/.config/electron-flags.conf" <<'EOF'
+--ozone-platform=wayland
+--enable-features=WaylandWindowDecorations
+EOF
+    cp "$pkgdir/etc/skel/.config/electron-flags.conf" "$pkgdir/etc/skel/.config/electron42-flags.conf"
+
+    install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+    for l in "$sdir/LICENSE" "$startdir/../LICENSE"; do
+        if [ -f "$l" ]; then
+            install -m644 "$l" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            break
+        fi
+    done
+}

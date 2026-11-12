@@ -1,0 +1,86 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknetctl
+pkgver=0.1.0
+pkgrel=11
+pkgdesc="HacknetOS CLI control tool for hacknetd"
+arch=(x86_64)
+url="https://github.com/HacknetAOS/hacknet-core"
+license=(GPL-3.0-or-later)
+depends=(gcc-libs)
+makedepends=(cargo)
+source=()
+sha256sums=()
+
+_find_core_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-core" "${HACKNET_SRC:-}" "$startdir/../../hacknet-core"; do
+        if [ -n "$d" ] && [ -d "$d/crates/hacknetctl" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    echo "."
+}
+
+build() {
+    local cdir
+    cdir="$(_find_core_dir)"
+    cd "$cdir/crates/hacknetctl"
+    cargo build --release --locked
+}
+
+check() {
+    local cdir
+    cdir="$(_find_core_dir)"
+    cd "$cdir/crates/hacknetctl"
+    cargo test --release --locked
+}
+
+package() {
+    local cdir bin
+    cdir="$(_find_core_dir)"
+    bin="$cdir/target/release/hacknetctl"
+    if [ ! -f "$bin" ]; then
+        bin="$cdir/crates/hacknetctl/target/release/hacknetctl"
+    fi
+    install -Dm755 "$bin" "$pkgdir/usr/bin/hacknetctl"
+
+    install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+    for l in "$cdir/LICENSE" "$startdir/../LICENSE"; do
+        if [ -f "$l" ]; then
+            install -m644 "$l" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            break
+        fi
+    done
+
+    install -dm755 "$pkgdir/usr/share/bash-completion/completions"
+    cat > "$pkgdir/usr/share/bash-completion/completions/hacknetctl" <<'EOF'
+_hacknetctl() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="state windows netmap activate kill zone netmap-move netmap-reset theme theme-changed volume media notify ping desktop-switch desktop-add cycle"
+    case "${prev}" in
+        theme)
+            COMPREPLY=( $(compgen -W "blue ente hellhound naix white hacknet" -- ${cur}) )
+            return 0
+            ;;
+        zone)
+            COMPREPLY=( $(compgen -W "stage terminal sidebar dialog ignored" -- ${cur}) )
+            return 0
+            ;;
+        media)
+            COMPREPLY=( $(compgen -W "play_pause next prev stop" -- ${cur}) )
+            return 0
+            ;;
+        volume)
+            COMPREPLY=( $(compgen -W "up down mute" -- ${cur}) )
+            return 0
+            ;;
+    esac
+    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+    return 0
+}
+complete -F _hacknetctl hacknetctl
+EOF
+}

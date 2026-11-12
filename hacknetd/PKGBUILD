@@ -1,0 +1,76 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknetd
+pkgver=0.1.0
+pkgrel=18
+pkgdesc="HacknetOS window placement daemon (grid, NetMap, theme IPC)"
+arch=(x86_64)
+url="https://github.com/HacknetAOS/hacknet-core"
+license=(GPL-3.0-or-later)
+depends=(gcc-libs sway cava pipewire wireplumber)
+makedepends=(cargo)
+optdepends=(
+    'hyprland: production compositor backend'
+    'foot: default terminal'
+)
+source=()
+sha256sums=()
+
+_find_core_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-core" "${HACKNET_SRC:-}" "$startdir/../../hacknet-core"; do
+        if [ -n "$d" ] && [ -d "$d/crates/hacknetd" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    echo "."
+}
+
+build() {
+    local cdir
+    cdir="$(_find_core_dir)"
+    cd "$cdir/crates/hacknetd"
+    cargo build --release --locked
+}
+
+check() {
+    local cdir
+    cdir="$(_find_core_dir)"
+    cd "$cdir/crates/hacknetd"
+    cargo test --release --locked
+}
+
+package() {
+    local cdir bin
+    cdir="$(_find_core_dir)"
+    bin="$cdir/target/release/hacknetd"
+    if [ ! -f "$bin" ]; then
+        bin="$cdir/crates/hacknetd/target/release/hacknetd"
+    fi
+    install -Dm755 "$bin" "$pkgdir/usr/bin/hacknetd"
+
+    install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+    for l in "$cdir/LICENSE" "$startdir/../LICENSE"; do
+        if [ -f "$l" ]; then
+            install -m644 "$l" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            break
+        fi
+    done
+
+    install -dm755 "$pkgdir/usr/lib/systemd/user"
+    cat > "$pkgdir/usr/lib/systemd/user/hacknetd.service" <<'EOF'
+[Unit]
+Description=HacknetOS Window Placement Daemon
+After=graphical-session.target pipewire.service
+Wants=pipewire.service
+
+[Service]
+Type=simple
+Environment=HACKNET_BACKEND=auto
+ExecStart=/usr/bin/hacknetd
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=wayland-session.target
+EOF
+}

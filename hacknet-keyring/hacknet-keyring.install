@@ -1,0 +1,11 @@
+post_upgrade() {
+    if [ -x /usr/bin/pacman-key ]; then
+        /usr/bin/pacman-key --populate hacknetos 2>/dev/null || true
+    fi
+}
+
+post_install() {
+    if [ -x /usr/bin/pacman-key ]; then
+        /usr/bin/pacman-key --populate hacknetos 2>/dev/null || true
+    fi
+}

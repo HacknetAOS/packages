@@ -1,0 +1,92 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknet-theme
+pkgver=0.1.0
+pkgrel=10
+pkgdesc="HacknetOS theme compiler and color presets"
+arch=(x86_64)
+url="https://github.com/HacknetAOS/hacknet-theme"
+license=(GPL-3.0-or-later)
+depends=(gcc-libs)
+makedepends=(cargo)
+optdepends=(
+    'foot: terminal theming'
+    'gtk3: GTK3 theming'
+    'gtk4: GTK4 theming'
+    'qt6ct: Qt6 theming'
+    'hyprland: Hyprland border colors'
+    'starship: prompt theming'
+    'libcanberra: notification sound'
+)
+source=()
+sha256sums=()
+
+_find_core_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-core" "${HACKNET_SRC:-}" "$startdir/../../hacknet-core"; do
+        if [ -n "$d" ] && [ -d "$d/crates/hacknet-theme" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    echo "."
+}
+
+_find_theme_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-theme" "${HACKNET_SRC:-}" "$startdir/../../hacknet-theme"; do
+        if [ -n "$d" ] && [ -d "$d/presets" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    echo "."
+}
+
+build() {
+    local cdir
+    cdir="$(_find_core_dir)"
+    cd "$cdir/crates/hacknet-theme"
+    cargo build --release --locked
+}
+
+check() {
+    local cdir
+    cdir="$(_find_core_dir)"
+    cd "$cdir/crates/hacknet-theme"
+    cargo test --release --locked
+}
+
+package() {
+    local cdir tdir bin
+    cdir="$(_find_core_dir)"
+    tdir="$(_find_theme_dir)"
+    bin="$cdir/target/release/hacknet-theme"
+    if [ ! -f "$bin" ]; then
+        bin="$cdir/crates/hacknet-theme/target/release/hacknet-theme"
+    fi
+    install -Dm755 "$bin" "$pkgdir/usr/bin/hacknet-theme"
+
+    install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+    for l in "$cdir/LICENSE" "$startdir/../LICENSE"; do
+        if [ -f "$l" ]; then
+            install -m644 "$l" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            break
+        fi
+    done
+
+    install -dm755 "$pkgdir/usr/share/hacknet/themes"
+    install -m644 "$tdir"/presets/*.toml "$pkgdir/usr/share/hacknet/themes/"
+
+    install -dm755 "$pkgdir/usr/share/hacknet"
+    if [ -f "$startdir/layout.toml" ]; then
+        install -m644 "$startdir/layout.toml" "$pkgdir/usr/share/hacknet/layout.toml"
+    elif [ -f "$tdir/layout.toml" ]; then
+        install -m644 "$tdir/layout.toml" "$pkgdir/usr/share/hacknet/layout.toml"
+    fi
+
+    install -dm755 "$pkgdir/etc/gtk-3.0" "$pkgdir/etc/gtk-4.0"
+    cat > "$pkgdir/etc/gtk-3.0/settings.ini" <<'EOF'
+[Settings]
+gtk-theme-name = Adwaita-dark
+gtk-application-prefer-dark-theme = 1
+EOF
+    cp "$pkgdir/etc/gtk-3.0/settings.ini" "$pkgdir/etc/gtk-4.0/settings.ini"
+}

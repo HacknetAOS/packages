@@ -1,0 +1,28 @@
+post_install() {
+    # Create state directory structure
+    mkdir -p /var/lib/hacknet/theme
+    chmod 755 /var/lib/hacknet
+
+    # Apply default theme if not present
+    if [ ! -f /var/lib/hacknet/theme/current ]; then
+        hacknet-theme apply blue 2>/dev/null || true
+    fi
+
+    # Enable user services
+    systemctl --global enable hacknetd.service 2>/dev/null || true
+
+    # Update desktop database
+    update-desktop-database -q 2>/dev/null || true
+
+    # Update MIME database
+    update-mime-database /usr/share/mime 2>/dev/null || true
+}
+
+post_upgrade() {
+    post_install
+}
+
+pre_remove() {
+    # Disable user services
+    systemctl --global disable hacknetd.service 2>/dev/null || true
+}

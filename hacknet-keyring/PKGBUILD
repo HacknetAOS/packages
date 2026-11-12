@@ -1,0 +1,26 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknet-keyring
+pkgver=20261112
+pkgrel=1
+pkgdesc="HacknetAOS official PGP keyring"
+arch=(any)
+url="https://github.com/HacknetAOS/packages"
+license=(GPL-3.0-or-later)
+install=hacknet-keyring.install
+source=()
+sha256sums=()
+
+package() {
+    install -dm755 "$pkgdir/usr/share/pacman/keyrings"
+    install -m644 "$startdir/hacknetos.gpg" "$pkgdir/usr/share/pacman/keyrings/hacknetos.gpg"
+    install -m644 "$startdir/hacknetos-trusted" "$pkgdir/usr/share/pacman/keyrings/hacknetos-trusted"
+    install -m644 "$startdir/hacknetos-revoked" "$pkgdir/usr/share/pacman/keyrings/hacknetos-revoked"
+
+    install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+    for l in "$startdir/../LICENSE" "$startdir/../../LICENSE"; do
+        if [ -f "$l" ]; then
+            install -m644 "$l" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            break
+        fi
+    done
+}

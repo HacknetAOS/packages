@@ -1,0 +1,26 @@
+# makepkg build artifacts
+pkg/
+src/
+pkg-out/
+*.pkg.tar.zst
+*.pkg.tar.zst.sig
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+*.log
+
+# Secrets & keys
+*.pem
+*.key
+*private*.asc
+.env
+.env.*
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.idea/
+.vscode/

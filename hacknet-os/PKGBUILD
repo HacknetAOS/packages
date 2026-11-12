@@ -1,0 +1,94 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknet-os
+pkgver=0.1.0
+pkgrel=6
+pkgdesc="HacknetOS meta-package - complete fixed-grid Wayland desktop"
+arch=(x86_64)
+url="https://github.com/HacknetAOS/packages"
+license=(GPL-3.0-or-later)
+depends=(
+    # Core HacknetOS components
+    'hacknet-keyring'
+    'hacknetd'
+    'hacknetctl'
+    'hacknet-theme'
+    'hacknet-shell'
+
+    # Compositor & desktop runtime
+    'hyprland'
+    'sway'
+    'quickshell'
+    'foot'
+    'pipewire'
+    'pipewire-alsa'
+    'pipewire-pulse'
+    'wireplumber'
+    'cava'
+
+    # File management, media & AUR
+    'thunar'
+    'thunar-volman'
+    'gvfs'
+    'gvfs-mtp'
+    'gvfs-smb'
+    'ffmpegthumbnailer'
+    'tumbler'
+    'mpv'
+    'yay'
+    'base-devel'
+
+    # System & CLI utilities
+    'htop'
+    'btop'
+    'vim'
+    'nano'
+    'less'
+    'man-db'
+    'man-pages'
+    'which'
+    'unzip'
+    'zip'
+    'p7zip'
+    'rsync'
+    'openssh'
+    'sudo'
+    'bash-completion'
+    'jq'
+    'playerctl'
+    'libcanberra'
+    'upower'
+    'networkmanager'
+    'bluez'
+    'bluez-utils'
+    'grim'
+    'slurp'
+    'wl-clipboard'
+    'polkit'
+    'xdg-desktop-portal-hyprland'
+    'xdg-desktop-portal-wlr'
+    'xdg-desktop-portal-gtk'
+
+    # Hardware & graphics drivers
+    'linux-firmware'
+    'mesa'
+    'vulkan-icd-loader'
+    'vulkan-radeon'
+    'vulkan-intel'
+    'vulkan-nouveau'
+    'intel-ucode'
+    'amd-ucode'
+
+    # Fonts
+    'noto-fonts'
+    'noto-fonts-emoji'
+    'ttf-jetbrains-mono-nerd'
+)
+optdepends=(
+    'calamares: graphical system installer (live ISO)'
+    'reflector: pacman mirror sorting'
+)
+install=hacknet-os.install
+
+package() {
+    true
+}

@@ -1,0 +1,50 @@
+name: Build Packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Arch Packages
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git rust cargo sudo
+          useradd -m -s /bin/bash builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+      - uses: actions/checkout@v4
+
+      - name: Clone sibling repositories
+        run: |
+          mkdir -p /home/builder/src
+          cd /home/builder/src
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-core.git
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-shell.git
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-theme.git
+          chown -R builder:builder /home/builder/src
+
+      - name: Build packages
+        run: |
+          chown -R builder:builder .
+          su builder -c "HACKNET_SRC=/home/builder/src PKG_DIR=\"$PWD/pkg-out\" ./build-packages.sh"
+
+      - name: Verify repository database
+        run: |
+          ls -la pkg-out/
+          test -f pkg-out/hacknetos.db.tar.gz
+          test -f pkg-out/hacknetos.db
+
+      - name: Upload built packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: hacknetos-packages
+          path: pkg-out/*

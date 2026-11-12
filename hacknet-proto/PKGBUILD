@@ -1,0 +1,44 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknet-proto
+pkgver=0.1.0
+pkgrel=11
+pkgdesc="Shared protocol and state types for HacknetOS (layout, theme, window, IPC)"
+arch=(x86_64)
+url="https://github.com/HacknetAOS/hacknet-core"
+license=(GPL-3.0-or-later)
+depends=(gcc-libs)
+makedepends=(cargo)
+source=()
+sha256sums=()
+
+_find_proto_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-core" "${HACKNET_SRC:-}" "$startdir/../../hacknet-core"; do
+        if [ -n "$d" ] && [ -d "$d/crates/hacknet-proto" ]; then
+            echo "$d/crates/hacknet-proto"
+            return 0
+        fi
+    done
+    echo "crates/hacknet-proto"
+}
+
+build() {
+    cd "$(_find_proto_dir)"
+    cargo build --release --locked
+}
+
+check() {
+    cd "$(_find_proto_dir)"
+    cargo test --release --locked
+}
+
+package() {
+    local pdir
+    pdir="$(_find_proto_dir)"
+    install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+    for l in "$pdir/../../LICENSE" "$startdir/../LICENSE"; do
+        if [ -f "$l" ]; then
+            install -m644 "$l" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            break
+        fi
+    done
+}

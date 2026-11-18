@@ -6,6 +6,8 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  repository_dispatch:
+    types: [source-updated]
   workflow_dispatch:
 
 jobs:
@@ -17,7 +19,7 @@ jobs:
     steps:
       - name: Install build dependencies
         run: |
-          pacman -Syu --noconfirm --needed base-devel git rust cargo sudo
+          pacman -Syu --noconfirm --needed base-devel git rust cargo sudo gnupg
           useradd -m -s /bin/bash builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
@@ -27,10 +29,51 @@ jobs:
         run: |
           mkdir -p /home/builder/src
           cd /home/builder/src
-          git clone --depth 1 https://github.com/HacknetAOS/hacknet-core.git
-          git clone --depth 1 https://github.com/HacknetAOS/hacknet-shell.git
-          git clone --depth 1 https://github.com/HacknetAOS/hacknet-theme.git
+          git clone --filter=blob:none https://github.com/HacknetAOS/hacknet-core.git
+          git clone --filter=blob:none https://github.com/HacknetAOS/hacknet-shell.git
+          git clone --filter=blob:none https://github.com/HacknetAOS/hacknet-theme.git
           chown -R builder:builder /home/builder/src
+
+      - name: Auto-bump pkgrel from source commit counts
+        run: |
+          python3 - <<'PY'
+          import re, subprocess
+
+          def commits(repo):
+              return int(subprocess.check_output(
+                  ["git", "-C", f"/home/builder/src/{repo}", "rev-list", "--count", "HEAD"],
+                  text=True,
+              ).strip())
+
+          # Keep pkgrel strictly monotonic even across source-only pushes.
+          targets = {
+              "hacknet-shell": 61 + commits("hacknet-shell"),
+              "hacknetd":      15 + commits("hacknet-core"),
+              "hacknetctl":     8 + commits("hacknet-core"),
+              "hacknet-proto":  8 + commits("hacknet-core"),
+              "hacknet-theme":  7 + commits("hacknet-theme"),
+          }
+          for pkg, computed in targets.items():
+              p = f"{pkg}/PKGBUILD"
+              txt = open(p).read()
+              m = re.search(r"^pkgrel=(\d+)", txt, re.M)
+              cur = int(m.group(1)) if m else 1
+              new_rel = max(cur, computed)
+              if new_rel != cur:
+                  txt = re.sub(r"^pkgrel=\d+", f"pkgrel={new_rel}", txt, count=1, flags=re.M)
+                  open(p, "w").write(txt)
+              print(f"{pkg}: pkgrel={new_rel}")
+          PY
+
+      - name: Import GPG signing key (if configured)
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "${GPG_PRIVATE_KEY}" ]; then
+            su builder -c "gpg --batch --import" <<< "${GPG_PRIVATE_KEY}"
+          else
+            echo "GPG_PRIVATE_KEY not set; packages will be built unsigned."
+          fi
 
       - name: Build packages
         run: |
@@ -48,3 +91,29 @@ jobs:
         with:
           name: hacknetos-packages
           path: pkg-out/*
+
+      - name: Publish updated packages to HacknetAOS/repo
+        if: github.event_name != 'pull_request'
+        env:
+          REPO_PUSH_TOKEN: ${{ secrets.REPO_PUSH_TOKEN }}
+        run: |
+          if [ -z "${REPO_PUSH_TOKEN}" ]; then
+            echo "REPO_PUSH_TOKEN not configured; skipping push to HacknetAOS/repo."
+            exit 0
+          fi
+          git clone "https://x-access-token:${REPO_PUSH_TOKEN}@github.com/HacknetAOS/repo.git" /tmp/hacknet-repo
+          rm -f /tmp/hacknet-repo/x86_64/*.pkg.tar.zst /tmp/hacknet-repo/x86_64/*.pkg.tar.zst.sig
+          rm -f /tmp/hacknet-repo/x86_64/hacknetos.db* /tmp/hacknet-repo/x86_64/hacknetos.files*
+          cp -f pkg-out/*.pkg.tar.zst /tmp/hacknet-repo/x86_64/
+          cp -f pkg-out/*.pkg.tar.zst.sig /tmp/hacknet-repo/x86_64/ 2>/dev/null || true
+          cp -f pkg-out/hacknetos.db* pkg-out/hacknetos.files* /tmp/hacknet-repo/x86_64/
+          cd /tmp/hacknet-repo
+          git config user.name "HacknetAOS CI"
+          git config user.email "hacknetaos@users.noreply.github.com"
+          git add -A x86_64/
+          if git diff --cached --quiet; then
+            echo "HacknetAOS/repo is already up to date."
+          else
+            git commit -m "Auto-update packages from ${GITHUB_EVENT_NAME} (${GITHUB_SHA::7})"
+            git push origin main
+          fi

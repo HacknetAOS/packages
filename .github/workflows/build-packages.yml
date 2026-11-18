@@ -29,33 +29,33 @@ jobs:
         run: |
           mkdir -p /home/builder/src
           cd /home/builder/src
-          git clone --filter=blob:none https://github.com/HacknetAOS/hacknet-core.git
-          git clone --filter=blob:none https://github.com/HacknetAOS/hacknet-shell.git
-          git clone --filter=blob:none https://github.com/HacknetAOS/hacknet-theme.git
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-core.git
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-shell.git
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-theme.git
           chown -R builder:builder /home/builder/src
 
-      - name: Auto-bump pkgrel from source commit counts
+      - name: Auto-bump pkgrel above published repo versions
         run: |
-          core_commits=$(git -c safe.directory='*' -C /home/builder/src/hacknet-core rev-list --count HEAD)
-          shell_commits=$(git -c safe.directory='*' -C /home/builder/src/hacknet-shell rev-list --count HEAD)
-          theme_commits=$(git -c safe.directory='*' -C /home/builder/src/hacknet-theme rev-list --count HEAD)
-
-          bump_pkg() {
-            local pkg="$1" computed="$2" p="$1/PKGBUILD" cur new_rel
+          git clone --depth 1 https://github.com/HacknetAOS/repo.git /tmp/hacknet-repo-check || true
+          for pkg in hacknet-keyring yay hacknet-proto hacknet-theme hacknetd hacknetctl hacknet-shell hacknet-os; do
+            p="${pkg}/PKGBUILD"
+            ver=$(sed -n 's/^pkgver=\([^[:space:]]*\).*/\1/p' "$p" | head -n1)
             cur=$(sed -n 's/^pkgrel=\([0-9][0-9]*\).*/\1/p' "$p" | head -n1)
             cur="${cur:-1}"
-            new_rel=$(( cur > computed ? cur : computed ))
-            if [ "$new_rel" != "$cur" ]; then
-              sed -i "s/^pkgrel=.*/pkgrel=${new_rel}/" "$p"
-            fi
-            echo "${pkg}: pkgrel=${new_rel}"
-          }
-
-          bump_pkg hacknet-shell "$((61 + shell_commits))"
-          bump_pkg hacknetd      "$((15 + core_commits))"
-          bump_pkg hacknetctl    "$((8 + core_commits))"
-          bump_pkg hacknet-proto "$((8 + core_commits))"
-          bump_pkg hacknet-theme "$((7 + theme_commits))"
+            repo_rel=0
+            for f in /tmp/hacknet-repo-check/x86_64/"${pkg}-${ver}-"*.pkg.tar.zst; do
+              [ -e "$f" ] || continue
+              rel=$(basename "$f" | sed -n "s/^${pkg}-${ver}-\([0-9][0-9]*\)-.*/\1/p")
+              if [ -n "$rel" ] && [ "$rel" -gt "$repo_rel" ]; then
+                repo_rel="$rel"
+              fi
+            done
+            next_rel=$((repo_rel + 1))
+            new_rel=$((cur > next_rel ? cur : next_rel))
+            sed -i "s/^pkgrel=.*/pkgrel=${new_rel}/" "$p"
+            echo "${pkg}: ${ver}-${cur} -> ${ver}-${new_rel} (repo had ${repo_rel})"
+          done
+          rm -rf /tmp/hacknet-repo-check
 
       - name: Import GPG signing key (if configured)
         env:

@@ -1,0 +1,30 @@
+# Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
+pkgname=hacknet-settings
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="HacknetOS full system, desktop, theme, input, and keybind settings application"
+arch=(any)
+url="https://github.com/HacknetAOS/hacknet-settings"
+license=(GPL-3.0-or-later)
+depends=(python python-gobject gtk4 hacknetctl hacknet-theme)
+source=()
+sha256sums=()
+
+_find_settings_dir() {
+    for d in "${HACKNET_SRC:-}/hacknet-settings" "${HACKNET_SRC:-}" "$startdir/../../hacknet-settings"; do
+        if [ -n "$d" ] && [ -f "$d/hacknet-settings" ]; then
+            echo "$d"
+            return 0
+        fi
+    done
+    echo "."
+}
+
+package() {
+    local sdir
+    sdir="$(_find_settings_dir)"
+    install -Dm755 "$sdir/hacknet-settings" "$pkgdir/usr/bin/hacknet-settings"
+    install -Dm644 "$sdir/hacknet-settings.desktop" "$pkgdir/usr/share/applications/hacknet-settings.desktop"
+    install -Dm644 "$sdir/README.md" "$pkgdir/usr/share/doc/hacknet-settings/README.md"
+    install -Dm644 "$sdir/LICENSE" "$pkgdir/usr/share/licenses/hacknet-settings/LICENSE"
+}

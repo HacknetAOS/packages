@@ -15,7 +15,7 @@ echo "=== Building HacknetAOS packages ==="
 echo "Source root: $HACKNET_SRC"
 echo "Output dir:  $PKG_DIR"
 
-for pkg in hacknet-keyring yay hacknet-proto hacknet-theme hacknetd hacknetctl hacknet-shell hacknet-os; do
+for pkg in hacknet-keyring yay hacknet-proto hacknet-theme hacknetd hacknetctl hacknet-shell hacknet-settings hacknet-os; do
     echo ""
     echo "--- Building $pkg ---"
     cd "$SCRIPT_DIR/$pkg"

@@ -32,6 +32,7 @@ jobs:
           git clone --depth 1 https://github.com/HacknetAOS/hacknet-core.git
           git clone --depth 1 https://github.com/HacknetAOS/hacknet-shell.git
           git clone --depth 1 https://github.com/HacknetAOS/hacknet-theme.git
+          git clone --depth 1 https://github.com/HacknetAOS/hacknet-settings.git || true
           chown -R builder:builder /home/builder/src
 
       - name: Auto-bump pkgrel above published repo versions

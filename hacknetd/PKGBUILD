@@ -1,7 +1,7 @@
 # Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
 pkgname=hacknetd
 pkgver=0.1.0
-pkgrel=18
+pkgrel=19
 pkgdesc="HacknetOS window placement daemon (grid, NetMap, theme IPC)"
 arch=(x86_64)
 url="https://github.com/HacknetAOS/hacknet-core"

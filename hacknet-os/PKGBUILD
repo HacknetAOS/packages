@@ -1,7 +1,7 @@
 # Maintainer: HacknetAOS <hacknetaos@users.noreply.github.com>
 pkgname=hacknet-os
 pkgver=0.1.0
-pkgrel=6
+pkgrel=7
 pkgdesc="HacknetOS meta-package - complete fixed-grid Wayland desktop"
 arch=(x86_64)
 url="https://github.com/HacknetAOS/packages"
@@ -13,6 +13,7 @@ depends=(
     'hacknetctl'
     'hacknet-theme'
     'hacknet-shell'
+    'hacknet-settings'
 
     # Compositor & desktop runtime
     'hyprland'
